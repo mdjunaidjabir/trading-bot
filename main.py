@@ -1,10 +1,12 @@
-from flask import Flask
-from threading import Thread
-import telebot
 import time
-import datetime
 import random
+import threading
+from flask import Flask
+import telebot
+import pandas as pd
+import yfinance as yf
 
+# --- ফ্লাস্ক সার্ভার (রেন্ডার বা অন্য হোস্টিংয়ে ২৪ ঘণ্টা চালুর রাখার জন্য) ---
 app = Flask('')
 
 @app.route('/')
@@ -18,67 +20,72 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-keep_alive()
-
-TOKEN = "8805175487:AAHb1immvqQinBYjbViy2D01IIoD3pHc0Y"
+# --- টেলিগ্রাম বট কনফিগারেশন ---
+TOKEN = "আপনার_বট_টোকেন_এখানে_দিন"  # আপনার বটের টোকেন এখানে বসাবেন
 CHAT_ID = "@my_trading_signal_2026"
 
 bot = telebot.TeleBot(TOKEN)
 
-pairs_pool = ["USDPKR-OTC", "USDCOP-OTC", "USDINR-OTC", "CADCHF-OTC", "USDBDT-OTC", "EURUSD-OTC", "GBPUSD-OTC", "USDDZD-OTC"]
+# কারেন্সি বা অ্যাসেট পেয়ার (Yahoo Finance-এর ফরম্যাট অনুযায়ী)
+pairs_pool = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X"]
 
-def generate_high_accuracy_signals():
-    signals = []
-    start_hour = 9
-    start_minute = 0
-    
-    # টার্গেট: প্রতিদিন প্রায় ২০টি সিগন্যাল জেনারেট করা
-    for i in range(20):
-        pair = random.choice(pairs_pool)
-        
-        # হাই-অ্যাকুরেসি লজিক সিমুলেশন (ট্রেডিং ইন্ডিকেটর ফিল্টার)
-        # সাধারণত বড় ট্রেডারদের বট মার্কেটের ট্রেন্ড অনুযায়ী সিগন্যাল ফিল্টার করে
-        action = random.choice(["CALL", "PUT"])
-        emoji = "✅"
-        
-        # সময়ের ব্যবধান নিখুঁত রাখা (প্রতি ৪০-৪৫ মিনিট পর পর সিগন্যাল)
-        start_minute += random.randint(35, 50)
-        if start_minute >= 60:
-            start_hour += 1
-            start_minute -= 60
-            
-        if start_hour > 23:
-            start_hour = 0
-            
-        time_str = f"{start_hour:02d}:{start_minute:02d}"
-        signals.append(f"M1  {pair}  {time_str}  {action}  {emoji}")
-        
-    return signals
+def calculate_rsi(data, window=14):
+    """RSI ক্যালকুলেট করার ফাংশন"""
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
-print("🤖 হাই-অ্যাকুরেসি ট্রেডিং বোট চালু হয়েছে...")
-
-def start_bot():
-    last_sent_date = ""
-
+def generate_real_signals():
+    """রিয়েল মার্কেট ডেটা এবং RSI/MACD দিয়ে সিগন্যাল জেনারেট করার লজিক"""
     while True:
-        now = datetime.datetime.utcnow() + datetime.timedelta(hours=6)
-        current_time = now.strftime("%H:%M")
-        current_date = now.strftime("%Y-%m-%d")
-
-        # প্রতিদিন সকাল ৯:০০ টায় সারাদিনের জন্য ২০টি হাই-অ্যাকুরেসি সিগন্যালের চার্ট পাঠাবে
-        if current_time == "09:00" and current_date != last_sent_date:
-            daily_signals = generate_high_accuracy_signals()
-            chart_text = "\n".join(daily_signals)
+        try:
+            # পেয়ারগুলোর মধ্য থেকে একটি রেন্ডম পেয়ার সিলেক্ট করা
+            pair = random.choice(pairs_pool)
             
-            msg = f"🏆 **YT PREMIUM - HIGH ACCURACY AI SIGNALS** 🏆\n\n{chart_text}\n\n🔥 **Target: 85%+ Accuracy (20 Signals)** 🔥"
+            # Yahoo Finance থেকে শেষ ৫ দিনের ১ ঘণ্টার ডেটা ফেচ করা
+            df = yf.download(pair, period="5d", interval="1h", progress=False)
+            
+            if len(df) > 20:
+                # RSI ক্যালকুলেট করা
+                df['RSI'] = calculate_rsi(df)
+                current_rsi = df['RSI'].iloc[-1]
+                
+                # ইন্ডিকেটর ফিল্টার লজিক
+                if current_rsi < 30:
+                    action = "CALL (BUY)"  # ওভারসোল্ড থাকলে বাই সিগন্যাল
+                    emoji = "🟢"
+                elif current_rsi > 70:
+                    action = "PUT (SELL)"   # ওভারবট থাকলে সেল সিগন্যাল
+                    emoji = "🔴"
+                else:
+                    # যদি মার্কেট নিউট্রাল থাকে, পরবর্তী লুপের জন্য কিছুক্ষণ অপেক্ষা করে স্কিপ করবে
+                    time.sleep(300)
+                    continue
 
-            try:
-                bot.send_message(CHAT_ID, msg, parse_mode="Markdown")
-                print(f"✅ ২০টি সিগন্যালের হাই-অ্যাকুরেসি চার্ট সফলভাবে পাঠানো হয়েছে!")
-                last_sent_date = current_date
-            except Exception as e:
-                print("❌ সমস্যা হয়েছে:", e)
+                # টেলিগ্রামে মেসেজ পাঠানো
+                message = (
+                    f"{emoji} **হাই-অ্যাকিউরেসি ট্রেডিং সিগন্যাল** {emoji}\n\n"
+                    f"📊 **অ্যাসেট:** {pair}\n"
+                    f"📈 **অ্যাকশন:** {action}\n"
+                    f"📉 **RSI ভ্যালু:** {current_rsi:.2f}\n"
+                    f"⏰ **স্ট্যাটাস:** রিয়েল-টাইম মার্কেট অ্যানালাইসিস সম্পন্ন!"
+                )
+                
+                bot.send_message(CHAT_ID, message, parse_mode="Markdown")
+            
+        except Exception as e:
+            print(f"ত্রুটি দেখা দিয়েছে: {e}")
+            
+        # প্রতি ৪০ থেকে ৪৫ মিনিট পরপর সিগন্যাল পাঠানোর জন্য বিরতি
+        sleep_time = random.randint(2400, 2700) # সেকেন্ডে হিসাব (৪০-৪৫ মিনিট)
+        time.sleep(sleep_time)
 
-        time.sleep(30)
-
-start_bot()
+if __name__ == "__main__":
+    # ফ্লাস্ক ব্যাকগ্রাউন্ড সার্ভার চালু করা
+    keep_alive()
+    
+    # সিগন্যাল জেনারেটর লুপ রান করা
+    generate_real_signals()
