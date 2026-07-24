@@ -1,6 +1,7 @@
 import time
 import random
 import threading
+import os
 from flask import Flask
 import telebot
 
@@ -17,11 +18,11 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# আপনার আসল বট টোকেনটি এখানে বসাবেন
-TOKEN = "8805175487:AAHb1immvqQinBYjbViy2D01IIoD3p8HcOY"
-CHAT_ID = "@my_trading_signal_2026"
+# পরিবেশ থেকে সরাসরি টোকেন ও চ্যাট আইডি নেবে (সিকিউরড পদ্ধতি)
+TOKEN = os.environ.get("TOKEN")
+CHAT_ID = os.environ.get("CHAT_ID", "@my_trading_signal_2026")
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot()8805175487:AAHb1immvqQinBYjbViy2D01IIoD3p8HcOY
 pairs_pool = ["USDBDT_otc", "USDPKR-OTC", "USDINR-OTC", "EURUSD-OTC", "GBPUSD-OTC"]
 
 def send_batch_signals():
@@ -43,4 +44,4 @@ def send_batch_signals():
 
 if __name__ == "__main__":
     keep_alive()
-    send_batch_signals
+    send_batch_signals()
