@@ -8,7 +8,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Trading Bot is Live!"
+    return "Batch Trading Bot is running successfully!"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -17,14 +17,14 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# আপনার টেলিগ্রাম বট টোকেন এবং চ্যাট আইডি এখানে দিন
-TOKEN = "YOUR_BOT_TOKEN"
+# আপনার আসল বট টোকেনটি এখানে বসাবেন
+TOKEN = "8805175487:AAHb1immvqQinBYjbViy2D01IIoD3p8HcOY"
 CHAT_ID = "@my_trading_signal_2026"
 
 bot = telebot.TeleBot(TOKEN)
 pairs_pool = ["USDBDT_otc", "USDPKR-OTC", "USDINR-OTC", "EURUSD-OTC", "GBPUSD-OTC"]
 
-def send_signals():
+def send_batch_signals():
     while True:
         try:
             total_signals = 10
@@ -39,8 +39,8 @@ def send_signals():
         except Exception as e:
             print(f"Error: {e}")
             
-        time.sleep(1800) # প্রতি ৩০ মিনিট পর পর সিগন্যাল পাঠাবে
+        time.sleep(1800)
 
 if __name__ == "__main__":
     keep_alive()
-    send_signals()
+    send_batch_signals
