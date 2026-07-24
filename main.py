@@ -25,21 +25,18 @@ CHAT_ID = "@my_trading_signal_2026"
 
 bot = telebot.TeleBot(TOKEN)
 
-# র্যান্ডম পেয়ারগুলোর তালিকা
 pairs_pool = ["USDPKR-OTC", "USDCOP-OTC", "USDINR-OTC", "CADCHF-OTC", "USDBDT-OTC", "EURUSD-OTC", "GBPUSD-OTC", "USDDZD-OTC"]
 
-def generate_daily_signals():
+def generate_signals():
     signals = []
-    # প্রতিদিনের জন্য ১০-১২টি র্যান্ডম সিগন্যাল তৈরি করার লজিক
     start_hour = 10
     start_minute = 10
     
-    for i in range(12):
+    for i in range(10):
         pair = random.choice(pairs_pool)
         action = random.choice(["CALL", "PUT"])
         emoji = "✅"
         
-        # সময়ের ব্যবধান বাড়িয়ে দেওয়া (৫ থেকে ৭ মিনিট পরপর)
         start_minute += random.randint(3, 8)
         if start_minute >= 60:
             start_hour += 1
@@ -50,32 +47,32 @@ def generate_daily_signals():
         
     return signals
 
-print("🤖 অটো-জেনারেটর সিগন্যাল বোট চালু হয়েছে...")
+print("🤖 ২৪ ঘণ্টা অটো-সিগন্যাল চার্ট বোট চালু হয়েছে...")
 
 def start_bot():
-    sent_today = False
+    last_sent_hour = ""
 
     while True:
         now = datetime.datetime.utcnow() + datetime.timedelta(hours=6)
         current_time = now.strftime("%H:%M")
+        current_hour = now.strftime("%H")
 
-        # প্রতিদিন সকাল ১০:০০ টায় নিজে নিজে নতুন চার্ট জেনারেট করে পাঠাবে
-        if current_time == "10:00" and not sent_today:
-            daily_signals = generate_daily_signals()
+        # ২৪ ঘণ্টার মধ্যে প্রতি ৩ ঘণ্টা পর পর (যেমন: রাত ১২টা, ৩টা, সকাল ৬টা, ৯টা, দুপুর ১২টা ইত্যাদি) নতুন চার্ট পাঠাবে
+        # আপনি চাইলে সময়গুলো পরিবর্তন করতে পারেন
+        allowed_hours = ["00", "03", "06", "09", "12", "15", "18", "21"]
+
+        if current_hour in allowed_hours and current_hour != last_sent_hour and current_time.endswith("00"):
+            daily_signals = generate_signals()
             chart_text = "\n".join(daily_signals)
             
             msg = f"🏆 **YT PREMIUM - THE AI FUTURE SIGNALS** 🏆\n\n{chart_text}\n\n🔥 **100% Accuracy AI Bot** 🔥"
 
             try:
                 bot.send_message(CHAT_ID, msg, parse_mode="Markdown")
-                print("✅ প্রতিদিনের নতুন সিগন্যাল চার্ট জেনারেট করে পাঠানো হয়েছে!")
-                sent_today = True
+                print(f"✅ ২৪ ঘণ্টার অটো চার্ট সফলভাবে পাঠানো হয়েছে ({current_time})!")
+                last_sent_hour = current_hour
             except Exception as e:
                 print("❌ সমস্যা হয়েছে:", e)
-
-        # রাত ১২টার পর আবার রিসেট হবে, যাতে পরের দিন আবার নতুন চার্ট বানাতে পারে
-        if current_time == "00:01":
-            sent_today = False
 
         time.sleep(30)
 
